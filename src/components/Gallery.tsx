@@ -1,102 +1,111 @@
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import type { DragUpdate, DropResult } from "react-beautiful-dnd";
+import { FC, useState, useCallback, createContext } from "react";
+import {
+  DndContext,
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  DragOverlay,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
+import Grid from "./Grid";
+import SortableItem from "./SortableItem";
+import Item from "./Item";
+import { InitialDataType } from "../types";
 import styled from "styled-components";
-import { imageType } from "../types";
-import { useState } from "react";
 import Header from "./Header";
+import AddPhoto from "./AddPhoto";
 
-const Gallery = ({ initialData }: { initialData: imageType[] }) => {
-  const [images, setImages] = useState(initialData);
+interface GalleryProps {
+  initialData: InitialDataType[];
+}
 
-  // onDragStart handler function
-  const handleDragStart = () => {
-    document.body.style.transition = "background-color 0.5s ease-in-out";
-  };
+export interface GalleryContextProps {
+  items?: InitialDataType[];
+  setItems?: React.Dispatch<React.SetStateAction<InitialDataType[]>>;
+  itemForDelete?: string[] | null;
+  setItemForDelete?: React.Dispatch<React.SetStateAction<string[] | null>>;
+}
 
-  // onDragUpdate handler function
-  const handleDragUpdate = (update: DragUpdate) => {
-    const { destination } = update;
-    const opacity = destination ? destination.index / images.length : "0";
+export const GalleryContext = createContext<GalleryContextProps | null>(null);
 
-    document.body.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`;
-  };
+const Gallery: FC<GalleryProps> = ({ initialData }) => {
+  const [items, setItems] = useState(initialData);
+  const [activeItem, setActiveItem] = useState<InitialDataType | null>(null);
+  const [itemForDelete, setItemForDelete] = useState<string[] | null>(null);
+  const sensors = useSensors(useSensor(MouseSensor), useSensor(TouchSensor));
 
-  // onDragEnd handler function
-  const handleDragEnd = (result: DropResult) => {
-    document.body.style.backgroundColor = "inherit";
+  const handleDragStart = useCallback(
+    (event: DragStartEvent) => {
+      setActiveItem(items.find((item) => item.id === event.active.id)!);
+    },
+    [items]
+  );
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
 
-    const { source, destination, type } = result;
-    console.log("drag event occured", result);
-
-    // return immediately if destination is null
-    if (!destination) return;
-
-    // return immediately if dropableId, and index of source and destination is same
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    )
-      return;
-
-    if (type === "group") {
-      const rearrangeImages = [...images];
-
-      const sourceIndex = source.index;
-      const destinationIndex = destination.index;
-
-      const [removeImages] = rearrangeImages.splice(sourceIndex, 1);
-
-      rearrangeImages.splice(destinationIndex, 0, removeImages);
-      console.log(rearrangeImages);
-
-      return setImages(rearrangeImages);
+    if (active.id !== over?.id) {
+      setItems((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over?.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
     }
-  };
-  return (
-    <GalleryContainer>
-      <Header />
-      <DragDropContext
-        onDragStart={handleDragStart}
-        onDragUpdate={handleDragUpdate}
-        onDragEnd={handleDragEnd}
-      >
-        <DroppableWrapper>
-          {images.map((img, index) => (
-            <Droppable key={img.id} droppableId={img.id} type="group">
-              {(provided, snapshot) => (
-                <DraggableWrapper
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                >
-                  <Draggable draggableId={img.id} index={index}>
-                    {(provided) => (
-                      <ImageWrapper
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        ref={provided.innerRef}
-                      >
-                        <img
-                          width={150}
-                          height={150}
-                          src={img.src}
-                          alt="product"
-                        />
-                      </ImageWrapper>
-                    )}
-                  </Draggable>
 
-                  <PlaceHolder
-                    isdraggingover={snapshot.isDraggingOver.toString()}
-                  >
-                    {provided.placeholder}
-                  </PlaceHolder>
-                </DraggableWrapper>
-              )}
-            </Droppable>
-          ))}
-        </DroppableWrapper>
-      </DragDropContext>
-    </GalleryContainer>
+    setActiveItem(null);
+  }, []);
+  const handleDragCancel = useCallback(() => {
+    setActiveItem(null);
+  }, []);
+
+  return (
+    <GalleryContext.Provider
+      value={{
+        items,
+        setItems,
+        itemForDelete,
+        setItemForDelete,
+      }}
+    >
+      <GalleryContainer>
+        <Header />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext
+            items={items.map((item) => item.id)}
+            strategy={rectSortingStrategy}
+          >
+            <Grid>
+              {items.map((item, index) => (
+                <SortableItem key={item.id} item={item} index={index} />
+              ))}
+              <AddPhoto />
+            </Grid>
+          </SortableContext>
+          <DragOverlay adjustScale style={{ transformOrigin: "0 0 " }}>
+            {activeItem ? (
+              <Item
+                style={{ background: "#fff" }}
+                item={activeItem}
+                isDragging
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      </GalleryContainer>
+    </GalleryContext.Provider>
   );
 };
 
@@ -104,54 +113,8 @@ export default Gallery;
 
 const GalleryContainer = styled.div`
   user-select: none;
-  width: 100%;
   max-width: 1200px;
-  margin: 0 auto;
-`;
-
-const DroppableWrapper = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-
-  @media screen and (min-width: 576px) {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  @media screen and (min-width: 768px) {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  @media screen and (min-width: 992px) {
-    grid-template-columns: repeat(5, 1fr);
-  }
-`;
-
-const DraggableWrapper = styled.div`
-  position: relative;
-  display: flex;
-  transition: background-color 0.2s ease-in-out;
-  overflow: hidden;
-  border: 1px solid #ddd;
+  margin: 30px auto 0;
+  background-color: #fff;
   border-radius: 10px;
-`;
-
-const PlaceHolder = styled.div<{ isdraggingover: string }>`
-  /* width: 100%;
-  height: 100%; */
-  /* z-index: -10; */
-  /* background-color: pink; */
-  /* border: ${(props) =>
-    props.isdraggingover == "true" ? "" : "1px solid #be2e2e"}; */
-`;
-
-const ImageWrapper = styled.div`
-  width: 100%;
-  height: 100%;
-
-  img {
-    height: 100%;
-    width: 100%;
-    /* border: 1px solid #ddd; */
-
-    border-radius: 10px;
-  }
 `;
