@@ -1,4 +1,9 @@
-export const initialData = [
+export interface InitialDataType {
+  id: string;
+  src: string;
+}
+
+export const initialData: InitialDataType[] = [
   {
     id: "image1",
     src: "images/image-1.webp",

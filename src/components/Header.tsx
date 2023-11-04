@@ -1,42 +1,53 @@
 import { useContext } from "react";
 import styled from "styled-components";
-import { GalleryContext } from "./Gallery";
+import { ItemsContext, ItemsForDeleteContext } from "../context";
 
 const Header = () => {
-  const { items, setItems, itemForDelete, setItemForDelete } =
-    useContext(GalleryContext);
+  // consume context
+  const { setItems } = useContext(ItemsContext);
+  const { itemsForDelete, setItemsForDelete } = useContext(
+    ItemsForDeleteContext
+  );
 
+  // selected items delete handler function
   const handleDelete = () => {
-    console.log("delete.............");
-
-    itemForDelete?.map((id: string) => {
+    // map all selected items and delete it from items array
+    itemsForDelete?.map((id: string) => {
       setItems((prev) => prev.filter((item) => item.id !== id));
     });
-    setItemForDelete(null);
+
+    //  set null in selected items when items are deleted from the items array
+    setItemsForDelete(null);
   };
 
+  // set null in selected items when items are de-selected
   const handleChange = () => {
-    setItemForDelete(null);
+    setItemsForDelete(null);
   };
 
   return (
     <HeaderContainer>
-      {itemForDelete?.length ? (
+      {/* conditionally render title and input box*/}
+      {itemsForDelete?.length ? (
         <InputBox>
           <input
+            name="checkbox"
             type="checkbox"
-            checked={itemForDelete?.length}
+            checked={itemsForDelete?.length ? true : false}
             onChange={handleChange}
           />
-          <h3>
-            <span>{itemForDelete?.length}</span> <span>Files Selected</span>
-          </h3>
+          <Title>
+            <span>{itemsForDelete?.length}</span> <span>Files Selected</span>
+          </Title>
         </InputBox>
       ) : (
-        <h1>Gallery</h1>
+        <Title>Gallery</Title>
       )}
 
-      <DeleteButton onClick={handleDelete}>Delete files</DeleteButton>
+      {/* show delete button when items selected for delete */}
+      {itemsForDelete?.length ? (
+        <DeleteButton onClick={handleDelete}>Delete files</DeleteButton>
+      ) : null}
     </HeaderContainer>
   );
 };
@@ -45,11 +56,11 @@ export default Header;
 
 const HeaderContainer = styled.div`
   border-bottom: 1px solid #ddd;
-  padding: 20px 40px;
+  padding: 15px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 40px;
+  height: 60px;
 `;
 
 const InputBox = styled.div`
@@ -58,14 +69,13 @@ const InputBox = styled.div`
   gap: 10px;
 
   input {
-    width: 20px;
-    height: 20px;
-
-    &::before {
-      width: 15px;
-      height: 15px;
-    }
+    width: 18px;
+    height: 18px;
   }
+`;
+
+const Title = styled.h1`
+  font-size: 20px;
 `;
 
 const DeleteButton = styled.button`
@@ -75,7 +85,7 @@ const DeleteButton = styled.button`
   color: red;
   font-size: 16px;
   cursor: pointer;
-  padding: 5px 10px;
+  padding: 7px 14px;
   border-radius: 5px;
 
   &:hover {

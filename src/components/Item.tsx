@@ -5,9 +5,9 @@ import {
   useEffect,
   useState,
 } from "react";
-import { InitialDataType } from "../types";
 import styled from "styled-components";
-import { GalleryContext, GalleryContextProps } from "./Gallery";
+import { ItemsForDeleteContext } from "../context";
+import { InitialDataType } from "../constant";
 
 export type ItemProps = HTMLAttributes<HTMLImageElement> & {
   item: InitialDataType;
@@ -21,12 +21,14 @@ const Item = forwardRef<HTMLImageElement, ItemProps>(
     const [showInput, setShowInput] = useState(false);
     const [checked, setChecked] = useState(false);
 
-    const { itemForDelete, setItemForDelete } =
-      useContext<GalleryContextProps | null>(GalleryContext);
-    console.log({ showInput, checked, itemForDelete });
+    // consume context
+    const { itemsForDelete, setItemsForDelete } = useContext(
+      ItemsForDeleteContext
+    );
 
+    // check item selected or not if selected then set setChecked to true otherwise set setChecked and showInput to false
     useEffect(() => {
-      const currentItem = itemForDelete?.find((id: string) => item.id === id);
+      const currentItem = itemsForDelete?.find((id: string) => item.id === id);
 
       if (currentItem) {
         setChecked(true);
@@ -34,19 +36,19 @@ const Item = forwardRef<HTMLImageElement, ItemProps>(
         setChecked(false);
         setShowInput(false);
       }
-    }, [item.id, itemForDelete]);
+    }, [item.id, itemsForDelete]);
 
+    // Input change handler function
     const handleChange = (e: {
       target: { checked: boolean | ((prevState: boolean) => boolean) };
     }) => {
       setChecked(e.target.checked);
 
+      // decide item selected or not. If selected then set it into selected list for delete otherwise remove it from selected list for delete
       if (e.target.checked) {
-        setItemForDelete((prev: string[]) =>
-          prev ? [...prev, item.id] : [item.id]
-        );
+        setItemsForDelete((prev) => (prev ? [...prev, item.id] : [item.id]));
       } else {
-        setItemForDelete((prev: string[]) =>
+        setItemsForDelete((prev) =>
           prev ? prev.filter((id: string) => id !== item.id) : []
         );
       }
@@ -56,7 +58,6 @@ const Item = forwardRef<HTMLImageElement, ItemProps>(
       <ItemContainer
         $index={index}
         $withOpacity={withOpacity}
-        $isDragging={isDragging}
         onMouseEnter={() => setShowInput(true)}
         onMouseLeave={() => !checked && setShowInput(false)}
       >
@@ -64,16 +65,24 @@ const Item = forwardRef<HTMLImageElement, ItemProps>(
           src={item.src}
           alt="Product"
           ref={ref}
-          style={{ ...style }}
-          {...props}
           width={500}
           height={500}
+          style={{ ...style }}
+          {...props}
+          $isDragging={isDragging}
         />
 
         {!isDragging && showInput && (
-          <InputBox>
-            <span></span>
-            <input type="checkbox" checked={checked} onChange={handleChange} />
+          <InputBox $checked={checked}>
+            {/* overlay */}
+            <span className="overlay"></span>
+            {/* input field */}
+            <input
+              type="checkbox"
+              name="photo"
+              checked={checked}
+              onChange={handleChange}
+            />
           </InputBox>
         )}
       </ItemContainer>
@@ -86,17 +95,16 @@ export default Item;
 const ItemContainer = styled.div<{
   $index?: number;
   $withOpacity?: boolean;
-  $isDragging?: boolean;
 }>`
   position: relative;
+  height: 100%;
+  width: 100%;
   grid-column-start: ${({ $index }) => ($index === 0 ? "span 2" : "")};
   grid-row-start: ${({ $index }) => ($index === 0 ? "span 2" : "")};
   opacity: ${({ $withOpacity }) => ($withOpacity ? "0.5" : "1")};
 `;
 
 const Image = styled.img<{
-  $index?: number;
-  $withOpacity?: boolean;
   $isDragging?: boolean;
 }>`
   transform-origin: 0 0;
@@ -111,33 +119,27 @@ const Image = styled.img<{
   transform: ${({ $isDragging }) => ($isDragging ? "scale(1.05)" : "scale(1)")};
 `;
 
-const InputBox = styled.div`
-  transition: all 5s ease-in-out;
-  span {
+const InputBox = styled.div<{ $checked: boolean }>`
+  .overlay {
     background-color: #000;
     width: 100%;
     height: 100%;
-    position: absolute;
     pointer-events: none;
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
     border-radius: 10px;
-    opacity: 0.5;
+    opacity: ${({ $checked }) => ($checked ? "0.2" : "0.5")};
   }
 
   input {
-    position: absolute;
     pointer-events: all;
+    position: absolute;
     top: 20px;
     left: 20px;
-    width: 20px;
-    height: 20px;
-
-    &::before {
-      width: 15px;
-      height: 15px;
-    }
+    width: 18px;
+    height: 18px;
   }
 `;
