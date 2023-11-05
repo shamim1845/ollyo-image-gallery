@@ -51,7 +51,7 @@ const Gallery: FC<GalleryProps> = ({ initialData }) => {
       const { active, over } = event;
 
       // re-arrange items
-      if (active.id !== over?.id) {
+      if (over?.id && active.id !== over?.id) {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over?.id);
 

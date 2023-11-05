@@ -66,7 +66,7 @@ const HeaderContainer = styled.div`
 const InputBox = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 20px;
 
   input {
     width: 18px;
